@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume Screening Tool</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+  <!-- Header Section -->
+  <header>
+    <h1>Resume Screening Tool</h1>
+    <nav>
+      <a href="#upload">Upload</a>
+      <a href="#results">Results</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- Upload Section -->
+    <section id="upload">
+      <h2 class="text-center mb-4">Upload Resume</h2>
+      <form id="uploadForm" enctype="multipart/form-data">
+        <div class="form-group mb-3">
+          <label for="resume">Select Resume:</label>
+          <input type="file" name="resume" id="resume" class="form-control" accept=".docx,.pdf" required>
+        </div>
+        <div class="form-group mb-3">
+          <label for="job_role">Job Role:</label>
+          <input type="text" name="job_role" id="job_role" class="form-control" placeholder="Enter desired job role" required>
+        </div>
+        <button type="submit" class="btn btn-custom">
+          Upload and Analyze
+        </button>
+        
+      </form>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results" class="mt-5">
+      <h2 class="text-center mb-4">Analysis Results</h2>
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Basic Information</h5>
+          <p><strong>Name:</strong> <span id="name">N/A</span></p>
+          <p><strong>Email:</strong> <span id="email">N/A</span></p>
+          <p><strong>Job Role:</strong> <span id="parsedJobRole">N/A</span></p>
+          <p><strong>Phone:</strong> <span id="phone">N/A</span></p>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <h5 class="card-title">Skills</h5>
+          <p><span id="skills-list">N/A</span></p>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <h5 class="card-title">Experience</h5>
+          <ul id="experience-list" class="list-group"></ul>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-body">
+          <h5 class="card-title">Education</h5>
+          <p><span id="education-info">N/A</span></p>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <h3>Qualification vs Job Requirements</h3>
+        <canvas id="qualificationChart" width="400" height="200"></canvas>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-body">
+          <h5 class="card-title">Final Results</h5>
+          <p><strong>Score:</strong> <span id="candidateScore">N/A</span></p>
+          <p><strong>Verdict:</strong> <span id="resultMessage">N/A</span></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer Section -->
+  <footer>
+    <p>© 2024 Resume Screening Tool | Designed by Team</p>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
+
+
+app.py
+from flask import Flask, request, jsonify, render_template
+import os
+from resume_parse import extract_name, extract_email, extract_phone, extract_skills, extract_experience, extract_education, extract_text_from_file
+from fuzzywuzzy import fuzz
+
+app = Flask(__name__)
+
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'docx'}
+
+# Job role-specific requirements
+job_role_requirements = {
+    'Software Developer': {
+        'skills': ['Python', 'Java', 'C++', 'JavaScript', 'Spring Boot', 'HTML', 'CSS'],
+        'experience': 2,  # Minimum years of experience
+        'education': 'B.Tech in Computer Science or IT'
+    },
+    'Data Scientist': {
+        'skills': ['Python', 'R', 'SQL', 'Machine Learning', 'Data Analysis', 'Pandas', 'TensorFlow'],
+        'experience': 2,
+        'education': 'B.Tech in Computer Science or M.Sc. in Data Science'
+    },
+    'Database Administrator': {
+        'skills': ['SQL', 'MySQL', 'PostgreSQL', 'MongoDB', 'Database Optimization', 'Database Security'],
+        'experience': 3,
+        'education': 'B.Tech in Computer Science or IT'
+    },
+    'DevOps Engineer': {
+        'skills': ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Terraform', 'Jenkins', 'Cloud Computing'],
+        'experience': 2,
+        'education': 'B.Tech in Computer Science or IT'
+    },
+    'Machine Learning Engineer': {
+        'skills': ['Python', 'TensorFlow', 'PyTorch', 'Scikit-learn', 'Deep Learning', 'Natural Language Processing'],
+        'experience': 3,
+        'education': 'B.Tech in Computer Science or M.Sc. in Machine Learning'
+    },
+    'Cloud Engineer': {
+        'skills': ['AWS', 'Azure', 'Google Cloud', 'Serverless Architecture', 'Cloud Security', 'DevOps'],
+        'experience': 2,
+        'education': 'B.Tech in Computer Science or IT'
+    },
+    'Network Engineer': {
+        'skills': ['Routing', 'Switching', 'Firewall', 'VPN', 'Networking Protocols', 'Cisco', 'LAN/WAN'],
+        'experience': 2,
+        'education': 'B.Tech in Electronics/Telecommunication or Computer Science'
+    },
+    '   ': {
+        'skills': ['Penetration Testing', 'Firewalls', 'Incident Response', 'Cryptography', 'Vulnerability Assessment'],
+        'experience': 2,
+        'education': 'B.Tech in Computer Science or M.Sc. in Cyber Security'
+    },
+    'Project Manager': {
+        'skills': ['Project Planning', 'Agile', 'Scrum', 'Stakeholder Management', 'Risk Management', 'Leadership'],
+        'experience': 5,  # Project managers often require more years of experience
+        'education': 'B.Tech or MBA in Project Management'
+    },
+    'Full Stack Developer': {
+        'skills': ['React', 'Node.js', 'Express.js', 'MongoDB', 'HTML/CSS', 'JavaScript', 'MySQL'],
+        'experience': 2,
+        'education': 'B.Tech in Computer Science or IT'
+    }
+}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/analyze', methods=['POST'])
+def analyze_resume():
+    try:
+        resume = request.files.get('resume')
+        job_role = request.form.get('job_role')
+
+        if not resume or not job_role:
+            return jsonify({'error': 'Resume or job role not provided.'}), 400
+
+        if not allowed_file(resume.filename):
+            return jsonify({'error': 'Only .docx and .pdf files are supported.'}), 400
+
+        resume_text = extract_text_from_file(resume)
+
+        if job_role not in job_role_requirements:
+            return jsonify({'error': f"Job role '{job_role}' is not defined."}), 400
+
+        job_requirements = job_role_requirements[job_role]
+        required_skills = job_requirements['skills']
+        required_experience = job_requirements['experience']
+        required_education = job_requirements['education']
+
+        matched_skills = extract_skills(resume_text, required_skills)
+        raw_experience = extract_experience(resume_text)
+        formatted_experience = [point.strip() for point in raw_experience.split('.') if point.strip()]
+        education_info = extract_education(resume_text)
+
+        # Score calculations
+        max_skill_score = 50  # Adjust as needed
+        max_experience_score = 30
+        max_education_score = 20
+
+        skill_score = min(len(matched_skills) * (max_skill_score / len(required_skills)), max_skill_score)
+        experience_score = min(len(formatted_experience) * 10, max_experience_score) if len(formatted_experience) >= required_experience else 0
+        education_score = max_education_score if fuzz.partial_ratio(required_education.lower(), education_info.lower()) >= 65 else 0
+
+        total_max_score = max_skill_score + max_experience_score + max_education_score
+        overall_score = ((skill_score + experience_score + education_score) / total_max_score) * 100
+        overall_score = round(overall_score, 2)
+
+        verdict = "Selected" if overall_score >= 60 else "Not Selected"
+
+        resume_info = {
+            'name': extract_name(resume_text),
+            'email': extract_email(resume_text),
+            'phone': extract_phone(resume_text),
+            'job_role': job_role,
+            'skills': matched_skills,
+            'experience': formatted_experience,
+            'education': education_info,
+            'skill_score': skill_score,
+            'experience_score': experience_score,
+            'education_score': education_score,
+            'overall_score': overall_score,
+            'verdict': verdict,
+            'job_requirements': {
+                'required_skills': required_skills,
+                'required_experience': required_experience,
+                'required_education': required_education,
+            }
+        }
+
+        return jsonify(resume_info)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+
+resume_parse.py
+import pdfplumber
+from docx import Document
+import re
+
+def extract_text_from_file(file):
+    """ Extract text from a .docx or .pdf resume file. """
+    if file.filename.endswith('.docx'):
+        doc = Document(file)
+        text = [para.text for para in doc.paragraphs]
+        return '\n'.join(text)
+    elif file.filename.endswith('.pdf'):
+        with pdfplumber.open(file) as pdf:
+            pages = [page.extract_text() for page in pdf.pages]
+            return '\n'.join(pages)
+    else:
+        raise ValueError("Unsupported file format. Only .docx and .pdf are supported.")
+
+def extract_name(text):
+    """ Extract the candidate's name based on the assumption that the first non-empty line is the name. """
+    lines = text.splitlines()
+    for line in lines:
+        line = line.strip()
+        if line:
+            return line
+    return None
+
+def extract_email(text):
+    """ Extract email using regex. """
+    match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
+    return match.group(0) if match else None
+
+def extract_phone(text):
+    """ Extract phone numbers using regex. """
+    match = re.search(r'\+?\d{1,4}[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{3}[-.\s]?\d{4}', text)
+    return match.group(0) if match else None
+
+def extract_skills(text, skills_list):
+    """ Match skills from the given list in the resume text. """
+    skills = []
+    for skill in skills_list:
+        if skill.lower() in text.lower():
+            skills.append(skill)
+    return skills
+
+def extract_experience(text):
+    """ Extract experience section from the resume using keywords. """
+    experience_keywords = ['Experience', 'Professional Experience', 'Work History']
+    pattern = r'(?i)(?:' + '|'.join(experience_keywords) + r')[:\s]?.*?(?=Education|Qualifications|Skills|$)'
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(0).strip() if match else "Not Found"
+
+def extract_education(text):
+    """Extract the education section from the resume."""
+    education_keywords = ['Education', 'Educational Background', 'Academic Qualifications']
+    # Improved pattern to capture content that follows education-related keywords
+    pattern = r'(?i)(?:' + '|'.join(education_keywords) + r')[:\s]?([\s\S]*?)(?=Certifications|Internships|Experience|Skills|$)'
+    
+    match = re.search(pattern, text, re.DOTALL)
+    if match:
+        # Clean the extracted education text
+        education_text = match.group(1).strip()
+        # Optionally, you could add additional cleaning steps here to format the result
+        return education_text
+    else:
+        return ''
+
+    
+    # Return the matched education section, or 'Not Found' if no match is found
+    return match.group(0).strip() if match else "Not Found"
+
+
+Key_match.py
+from fuzzywuzzy import fuzz
+
+def calculate_score(resume_data, job_role_data):
+    # Calculate skill match score
+    max_skill_score = 50  # Maximum points for skills
+    total_skills_required = len(job_role_data.get('skills', []))
+    skill_match = len(set(resume_data.get('skills', [])) & set(job_role_data.get('skills', [])))
+    skill_score = (skill_match / total_skills_required) * max_skill_score if total_skills_required > 0 else 0
+
+    # Calculate education match score using fuzzy matching
+    max_education_score = 20  # Maximum points for education
+    required_education = job_role_data.get('education', '').strip().lower()
+    resume_education = resume_data.get('education', '').strip().lower()
+    if required_education and resume_education:
+        match_score = fuzz.partial_ratio(resume_education, required_education)
+        education_match = 1 if match_score >= 65 else 0  # 80% similarity threshold
+    else:
+        education_match = 0
+    education_score = education_match * max_education_score
+
+    # Calculate experience match score
+    max_experience_score = 30  # Maximum points for experience
+    required_experience = job_role_data.get('experience', 0)
+    resume_experience = resume_data.get('experience', 0)
+    experience_match = min(resume_experience, required_experience)
+    experience_score = (experience_match / required_experience) * max_experience_score if required_experience > 0 else 0
+
+    # Calculate total score
+    total_score = skill_score + education_score + experience_score
+    max_total_score = max_skill_score + max_education_score + max_experience_score
+    overall_score = (total_score / max_total_score) * 100  # Normalize to 100
+
+    # Determine verdict based on score
+    verdict = "Selected" if overall_score >= 60 else "Not Selected"
+
+    # Return detailed scoring breakdown
+    return {
+        "overall_score": overall_score,
+        "verdict": verdict,
+        "skill_score": skill_score,
+        "education_score": education_score,
+        "experience_score": experience_score
+    }
+
+
+
+script.js
+document.addEventListener("DOMContentLoaded", () => {
+  const uploadForm = document.getElementById("uploadForm");
+  const qualificationChartCanvas = document.getElementById("qualificationChart").getContext("2d");
+
+  let chart; // Declare a variable for the chart
+
+  uploadForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(uploadForm);
+
+      try {
+          const response = await fetch('/analyze', {
+              method: 'POST',
+              body: formData
+          });
+
+          const data = await response.json();
+          if (data.error) {
+              alert(data.error);
+              return;
+          }
+
+          // Update basic information
+          document.getElementById("name").textContent = data.name || 'N/A';
+          document.getElementById("email").textContent = data.email || 'N/A';
+          document.getElementById("parsedJobRole").textContent = data.job_role || 'N/A';
+          document.getElementById("phone").textContent = data.phone || 'N/A';
+
+          // Update skills
+          document.getElementById("skills-list").textContent = data.skills.join(', ') || 'N/A';
+
+          // Update experience
+          const experienceList = document.getElementById("experience-list");
+          experienceList.innerHTML = '';
+          data.experience.forEach(exp => {
+              const listItem = document.createElement("li");
+              listItem.textContent = exp;
+              experienceList.appendChild(listItem);
+          });
+
+          // Update education
+          document.getElementById("education-info").textContent = data.education || 'N/A';
+
+          // Update scores and verdict
+          document.getElementById("candidateScore").textContent = data.overall_score || 'N/A';
+          document.getElementById("resultMessage").textContent = data.verdict || 'N/A';
+
+          // Prepare chart data for candidate and job requirements
+          const candidateScores = [
+            data.skill_score, // Candidate's skill score from backend
+            data.experience_score, // Candidate's experience score from backend
+            data.education_score // Candidate's education score from backend
+          ];
+          
+          // Job requirement scores logic:
+          const jobRequirementScores = [
+            // Skill score: Based on the maximum skill score (50) as defined in backend
+            data.job_requirements.required_skills.length > 0 
+              ? 50 // Max skill score is fixed at 50
+              : 0,
+          
+            // Experience score: Based on the maximum experience score (30) as defined in backend
+            data.job_requirements.required_experience > 0 
+              ? data.job_requirements.required_experience * (30 / data.job_requirements.required_experience) 
+              : 0,
+          
+            // Education score: Fixed at 20 as maximum education score
+            data.education_score > 0 
+            ? (data.education_score / 20) * 20 // Normalize fuzzy match score to max education score
+            : 0
+          ];
+          
+
+          // Destroy existing chart if present
+          if (chart) {
+              chart.destroy();
+          }
+
+          // Create new chart with updated data
+          chart = new Chart(qualificationChartCanvas, {
+              type: 'line',
+              data: {
+                  labels: ['Skills', 'Experience', 'Education'],
+                  datasets: [
+                      {
+                          label: 'Candidate Qualifications',
+                          data: candidateScores,
+                          borderColor: 'rgba(75, 192, 192, 1)',
+                          backgroundColor: 'rgba(75, 192, 192, 0.3)', // Add fill color for the area
+                          borderWidth: 2,
+                          fill: true, // Fill the area under the line
+                          tension: 0.4 // Smooths the line
+                      },
+                      {
+                          label: 'Job Requirements',
+                          data: jobRequirementScores,
+                          borderColor: 'rgba(255, 99, 132, 1)',
+                          backgroundColor: 'rgba(255, 99, 132, 0.3)', // Add fill color for the area
+                          borderWidth: 2,
+                          fill: true, // Fill the area under the line
+                          tension: 0.4 // Smooths the line
+                      }
+                  ]
+              },
+              options: {
+                  responsive: true,
+                  scales: {
+                      y: {
+                          beginAtZero: true,
+                          max: 100,
+                          title: {
+                              display: true,
+                              text: 'Score (%)'
+                          }
+                      },
+                      x: {
+                          title: {
+                              display: true,
+                              text: 'Category'
+                          }
+                      }
+                  },
+                  plugins: {
+                      legend: {
+                          display: true
+                      },
+                      tooltip: {
+                          mode: 'index',
+                          intersect: false
+                      }
+                  }
+              }
+          });
+
+      } catch (error) {
+          alert('An error occurred: ' + error);
+      }
+  });
+});
+
+Style.css
+/* General Reset */
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: #F9F6FC; /* Subtle lavender background */
+  color: #4B0082; /* Deep indigo for primary text */
+}
+
+/* Header Styling */
+header {
+  background: linear-gradient(90deg, #a4508b, #5f0a87); /* Lavender gradient */
+  color: white;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+nav a {
+  margin: 0 1rem;
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+/* Main Section */
+main {
+  padding: 2rem;
+}
+
+/* Form Styling */
+form label {
+  font-weight: bold;
+  color: #4B0082;
+}
+
+form input, form button {
+  border-radius: 8px;
+  border: 1px solid #D8BFD8;
+  padding: 0.8rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom Button for Lavender Theme */
+.btn-custom {
+  background-color: #6d08a8cb; /* Lavender background */
+  color: white; /* White text */
+  font-weight: bold;
+  border: none;
+  border-radius: 8px; /* Rounded corners */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-custom:hover {
+  background-color: #7150b4; /* Slightly darker lavender */
+  transform: scale(1.05); /* Subtle hover effect */
+  color: white;
+}
+
+.btn-custom:active {
+  background-color: #7A52C2; /* Even darker lavender for active state */
+  transform: scale(0.95); /* Pressed effect */
+}
+
+/* Card Styling */
+.card {
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: none;
+}
+
+.card-body {
+  background-color: #C68FE6;
+  color: black;
+}
+
+/* Chart */
+canvas {
+  background-color: #F4F0F8;
+  border-radius: 8px;
+}
+
+/* Footer */
+footer {
+  background: linear-gradient(90deg, #5f0a87, #a4508b);
+  color: white;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+
