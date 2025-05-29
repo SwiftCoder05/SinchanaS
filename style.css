@@ -1,97 +1,188 @@
-/* General Reset */
 body {
-    margin: 0;
-    font-family: 'Roboto', sans-serif;
-    background-color: #F9F6FC; /* Subtle lavender background */
-    color: #4B0082; /* Deep indigo for primary text */
-  }
-  
-  /* Header Styling */
-  header {
-    background: linear-gradient(90deg, #a4508b, #5f0a87); /* Lavender gradient */
-    color: white;
-    padding: 1.5rem;
-    text-align: center;
-  }
-  
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  color: #3E0066;
+  background: linear-gradient(-45deg, #e0c3fc, #8ec5fc, #f9f6fc, #d0bfff);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Animated Gradient Background */
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Header */
+header {
+  background: rgba(95, 10, 135, 0.95);
+  color: white;
+  padding: 2rem 1rem;
+  text-align: center;
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+  animation: fadeInTop 1s ease-out;
+}
+
+@keyframes fadeInTop {
+  from { opacity: 0; transform: translateY(-40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+nav {
+  margin-top: 1rem;
+}
+
+nav a {
+  margin: 0 1rem;
+  color: #f9f9f9;
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+nav a:hover {
+  color: #ffd6ff;
+  text-decoration: underline;
+}
+
+/* Main Section */
+main {
+  padding: 3rem 2rem;
+  max-width: 1100px;
+  margin: auto;
+  animation: fadeInMain 1s ease-in-out;
+}
+
+@keyframes fadeInMain {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Form */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+form label {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #4B0082;
+}
+
+form input,
+form button {
+  border-radius: 12px;
+  padding: 0.9rem;
+  font-size: 1rem;
+  border: 1px solid #D8BFD8;
+  transition: all 0.3s ease;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+form input:focus {
+  border-color: #b98bdc;
+  outline: none;
+  box-shadow: 0 0 5px #d6b3f9;
+}
+
+/* Custom Button */
+.btn-custom {
+  background: linear-gradient(135deg, #7b1fa2, #a4508b);
+  color: white;
+  font-weight: bold;
+  border: none;
+  padding: 0.9rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(123, 31, 162, 0.3);
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.btn-custom:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(123, 31, 162, 0.4);
+}
+
+.btn-custom:active {
+  transform: scale(0.97);
+  background-color: #6a1b9a;
+}
+
+/* Cards */
+.card {
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff;
+  transition: transform 0.3s ease;
+  animation: fadeInCard 1s ease forwards;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+}
+
+.card-body {
+  background-color: #EBD7FA;
+  padding: 1.5rem;
+  color: #333;
+}
+
+@keyframes fadeInCard {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Chart */
+canvas {
+  background-color: #f4f0f8;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Footer */
+footer {
+  background: linear-gradient(90deg, #5f0a87, #a4508b);
+  color: white;
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 1rem;
+  margin-top: 4rem;
+  box-shadow: 0 -8px 12px rgba(0, 0, 0, 0.1);
+  animation: fadeInTop 1s ease-out;
+}
+
+/* Responsive Layout */
+@media (max-width: 768px) {
   header h1 {
-    font-size: 2.5rem;
-    font-weight: bold;
+    font-size: 2rem;
   }
-  
+
   nav a {
-    margin: 0 1rem;
-    color: white;
-    font-weight: bold;
-    text-decoration: none;
+    display: block;
+    margin: 0.5rem 0;
   }
-  
-  nav a:hover {
-    text-decoration: underline;
-  }
-  
-  /* Main Section */
+
   main {
-    padding: 2rem;
+    padding: 2rem 1rem;
   }
-  
-  /* Form Styling */
-  form label {
-    font-weight: bold;
-    color: #4B0082;
-  }
-  
-  form input, form button {
-    border-radius: 8px;
-    border: 1px solid #D8BFD8;
-    padding: 0.8rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  
-  /* Custom Button for Lavender Theme */
+
   .btn-custom {
-    background-color: #6d08a8cb; /* Lavender background */
-    color: white; /* White text */
-    font-weight: bold;
-    border: none;
-    border-radius: 8px; /* Rounded corners */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    width: 100%;
   }
-  
-  .btn-custom:hover {
-    background-color: #7150b4; /* Slightly darker lavender */
-    transform: scale(1.05); /* Subtle hover effect */
-    color: white;
-  }
-  
-  .btn-custom:active {
-    background-color: #7A52C2; /* Even darker lavender for active state */
-    transform: scale(0.95); /* Pressed effect */
-  }
-  
-  /* Card Styling */
-  .card {
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border: none;
-  }
-  
-  .card-body {
-    background-color: #C68FE6;
-    color: black;
-  }
-  
-  /* Chart */
-  canvas {
-    background-color: #F4F0F8;
-    border-radius: 8px;
-  }
-  
-  /* Footer */
-  footer {
-    background: linear-gradient(90deg, #5f0a87, #a4508b);
-    color: white;
-    text-align: center;
-    padding: 1.5rem;
-  }
+}
